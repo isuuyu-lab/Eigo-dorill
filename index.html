@@ -154,13 +154,12 @@ h1{
 .judge{display:flex;gap:8px;margin:32px 0 0}
 .judge button{
   flex:1;border-radius:2px;padding:15px 4px;min-height:78px;
-  font-size:12.5px;line-height:1.5;border:1px solid;background:transparent;
+  font-size:13px;line-height:1.5;border:1px solid;
 }
-.judge b{display:block;font-family:var(--mono);font-size:19px;font-weight:600;margin-bottom:3px;letter-spacing:.02em}
-.j1{background:var(--signal);border-color:var(--signal);color:#1A1408}
-.j2{border-color:var(--signal-dim);color:var(--signal);opacity:.9}
-.j3{border-color:var(--line);color:var(--dim2)}
-.jx{background:rgba(201,135,147,.16);border-color:var(--miss);color:#F3C3CB}
+.judge b{display:block;font-family:var(--mono);font-size:20px;font-weight:600;margin-bottom:3px;letter-spacing:.02em}
+.judge .j1{background:var(--signal);border-color:var(--signal);color:#1A1408;font-weight:700}
+.judge .jx{background:rgba(201,135,147,.18);border-color:var(--miss);color:#F5CBD2;font-weight:700}
+.judge .j3{background:transparent;border-color:var(--line);color:var(--dim)}
 
 /* ---------- result ---------- */
 .score{display:flex;gap:1px;margin:24px 0 8px;background:var(--line);border:1px solid var(--line)}
@@ -646,15 +645,15 @@ var SHUNSAKU = [
   why:"手段をたずねる how。動作なので does。答えは by bus / on foot など。"},
  {jp:"これはどのように使うのですか？",en:"How do I use this?",s:{},
   why:"使い方をたずねる定番。困った時にそのまま出せるので丸ごと覚える。"},
- {jp:"どうやって学校に行きますか？",en:"How do you go to school?",s:{},
+ {jp:"あなたはどうやって学校に行きますか？",en:"How do you go to school?",s:{},
   note:"状態をきくなら How are you?、動作をきくなら How do 〜?。同じ how でも中身で分かれる。",
   why:"手段をたずねる how。動作なので do が要る。be動詞と混ざりやすい箇所。"}
 ,
  {jp:"あなたのお母さんはお元気ですか？",en:"How is your mother?",s:{},
   why:"状態をたずねる how。三人称単数なので is。"},
- {jp:"どうやって駅に行きますか？",en:"How do you go to the station?",s:{},
+ {jp:"あなたはどうやって駅に行きますか？",en:"How do you go to the station?",s:{},
   why:"手段の how。the station に the を付ける。"},
- {jp:"この単語はどう言うのですか？",en:"How do you say this word?",s:{},
+ {jp:"あなたはこの単語をどう言いますか？",en:"How do you say this word?",s:{},
   why:"言い方をたずねる定番。レッスン中にそのまま使える。"}
 ]},
 {u:"P1U19",label:"P1 U19",theme:"How old (tall / much) 〜?",cards:[
@@ -708,7 +707,7 @@ var SHUNSAKU = [
   why:"can の否定は can't。後ろは必ず原形。"},
  {jp:"彼らは{A}を話すことができますか？",en:"Can they speak {A}?",s:{A:"lang"},
   why:"疑問文は Can を前に出すだけ。do は使わない。"},
- {jp:"手伝ってもらえますか？",en:"Can you help me?",s:{},
+ {jp:"あなたは私を手伝ってくれますか？",en:"Can you help me?",s:{},
   why:"依頼の can。困った時にそのまま出せる型。"}
 ]},
 {u:"P1U22",label:"P1 U22",theme:"現在進行形",cards:[
@@ -936,30 +935,36 @@ function shuffle(a){
 var SND = true;    /* 英語（答え）の読み上げ */
 var JASND = false; /* 日本語（問題）の読み上げ */
 function hasTTS(){ return "speechSynthesis" in window; }
+/* iOS は cancel() 直後の speak() を落とすことがあるので、少し待ってから話す */
+function ttsSpeak(u){
+  if(!hasTTS()) return;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  setTimeout(function(){
+    try{ speechSynthesis.resume(); speechSynthesis.speak(u); }catch(e){}
+  }, 130);
+}
 function speak(text){
   if(!SND || !hasTTS()) return;
   try{
-    speechSynthesis.cancel();
     var t = String(text).replace(/——/g, ".").replace(/\s+/g, " ");
     var u = new SpeechSynthesisUtterance(t);
     u.lang = "en-US"; u.rate = 0.95;
-    speechSynthesis.speak(u);
+    ttsSpeak(u);
   }catch(e){}
 }
 /* 問題文の読み上げ。「／」以降の言い換えは読まない。読み終わりで計測開始 */
 function speakJa(text, onEnd){
   if(!JASND || !hasTTS()){ if(onEnd) onEnd(); return; }
   try{
-    speechSynthesis.cancel();
     var t = String(text).split("／")[0].replace(/——/g, "、").replace(/\s+/g, " ");
     var u = new SpeechSynthesisUtterance(t);
     u.lang = "ja-JP"; u.rate = 1.0;
     var fired = false;
     u.onend = function(){ if(!fired){ fired = true; if(onEnd) onEnd(); } };
     u.onerror = function(){ if(!fired){ fired = true; if(onEnd) onEnd(); } };
-    speechSynthesis.speak(u);
+    ttsSpeak(u);
     /* 音声が返ってこない端末向けの保険 */
-    setTimeout(function(){ if(!fired){ fired = true; if(onEnd) onEnd(); } }, 6000);
+    setTimeout(function(){ if(!fired){ fired = true; if(onEnd) onEnd(); } }, 8000);
   }catch(e){ if(onEnd) onEnd(); }
 }
 
@@ -1008,8 +1013,8 @@ function say(text, lang, rate, done){
     var fired = false;
     var fin = function(){ if(!fired){ fired = true; if(done) done(); } };
     u.onend = fin; u.onerror = fin;
-    speechSynthesis.speak(u);
-    setTimeout(fin, 14000);
+    ttsSpeak(u);
+    setTimeout(fin, 15000);
   }catch(e){ if(done) done(); }
 }
 var A = { on:false, paused:false, q:[], i:0, lap:1, gap:5000, reps:2, phase:"ja", tok:0, timer:null };
@@ -1106,7 +1111,7 @@ function home(){
          + (last ? ' ・ 直近 ' + Math.round(last.n1 / Math.max(1, last.tot) * 100) + '%' : '') + '）' : '') +
        '</button>' +
        '<p class="note">名詞は毎回入れ替わる。同じ文でも同じ答えにはならない。<br><br>' +
-       '<b style="color:#5fd39a">v15.0</b> ・ 日本語の疑問文に「？」を表示（116問）。判定ボタンを「できた / できなかった」に統一し、両方を同じ大きさ・同じ濃さに。</p>';
+       '<b style="color:#5fd39a">v15.1</b> ・「できた」ボタンが黒く潰れて見えない不具合を修正。日本語読み上げがiPhoneで止まる問題に対処。主語の抜けた日本語を修正。</p>';
   app.innerHTML = h;
 }
 
@@ -1152,7 +1157,7 @@ function quiz(){
   }
   var h = '<div class="prog"><b>' + pad(S.i + 1) + ' / ' + pad(S.queue.length) + '</b>' +
           '<span class="ticks">' + ticks + '</span></div>' +
-          '<div class="tag">' + esc(it.src) + '</div>' +
+          '<div class="tag">' + esc(it.src) + (JASND ? '　🔊 日本語読み上げ ON' : '') + '</div>' +
           '<p class="q">' + esc(f.jp) + '</p>';
   if(!S.shown){
     h += '<button class="reveal" data-act="show">答 え</button>' +
